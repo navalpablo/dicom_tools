@@ -2,7 +2,7 @@ import os
 import argparse
 import pydicom
 import csv
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from tqdm import tqdm
 
 def find_dicom_files(directory, read_all):
@@ -33,35 +33,7 @@ def extract_dicom_info(file_path, fields):
         print(f"Error reading DICOM file {file_path}: {e}")
         return None
 
-def create_dummy_table(output_path, dummy_series, unique_sequences):
-    # Create a map from Patient ID to a defaultdict(int) for counting series descriptions
-    patient_series = defaultdict(lambda: defaultdict(int))
-    for sequence in unique_sequences.values():
-        patient_id = sequence.get("00100020", "")
-        series_description = sequence.get("0008103E", "")
-        for dummy in dummy_series:
-            if dummy in series_description:
-                patient_series[patient_id][dummy] += 1
-    
-    # Determine the columns for the dummy table
-    columns = ["Patient ID"] + dummy_series
-    
-    output_dummy_path = output_path.replace('.tsv', '_dummy.tsv')
-    
-    with open(output_dummy_path, 'w', newline='') as tsvfile:
-        writer = csv.writer(tsvfile, delimiter='\t')
-        writer.writerow(columns)
-        
-        # For each patient, count occurrences of each dummy series and write to row
-        for patient_id, counts in patient_series.items():
-            row = [patient_id] + [counts.get(dummy, 0) for dummy in dummy_series]
-            writer.writerow(row)
-
-
-
-def main(dicom_dir, output_path, read_all=False, dummy_series=None):
-
-
+def main(dicom_dir, output_path, read_all=False):
     # Define a mapping from DICOM tags to descriptive names
     dicom_field_mapping = {
         "00100020": "Patient ID",
@@ -85,6 +57,7 @@ def main(dicom_dir, output_path, read_all=False, dummy_series=None):
         "00180091": "Echo Train Length",
         "00180082": "Inversion Time",
         "00181314": "Flip Angle",
+        "00080008": "Image Type",  # Added Image Type field
     }
 
     # The fields to extract, in order
@@ -93,7 +66,6 @@ def main(dicom_dir, output_path, read_all=False, dummy_series=None):
     # Header row with descriptive names for each field
     header_row = list(dicom_field_mapping.values())
 
-    
     unique_sequences = {}
     all_files = list(find_dicom_files(dicom_dir, read_all))  # Pass the 'read_all' parameter
     
@@ -113,26 +85,17 @@ def main(dicom_dir, output_path, read_all=False, dummy_series=None):
         # Now write the data rows
         for sequence in unique_sequences.values():
             writer.writerow(sequence)
-    if dummy_series:
-        create_dummy_table(output_path, dummy_series, unique_sequences)
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(
-        description="Extract and save unique DICOM sequence information to a CSV file. This script allows for the extraction of specific DICOM header fields from files in a given directory and supports generating a dummy table based on series descriptions.",
+        description="Extract and save unique DICOM sequence information to a CSV file. This script allows for the extraction of specific DICOM header fields from files in a given directory.",
         epilog="""Examples of use:
         
         # Basic usage to process first 5 DICOM files in a directory and save output:
         python extract_dicom_headers.py --dicom test --output out_test.tsv
         
         # Process all DICOM files in the directory:
-        python extract_dicom_headers.py --dicom test --output out_test.tsv --read_all
-        
-        # Create a dummy table with specific series descriptions:
-        python extract_dicom_headers.py --dicom test --output out_test.tsv --dummy_table T1 "NOMS_VISUAL" "NOMS VISUAL" FLAIR
-        
-        # Full command with reading all files and generating a dummy table:
-        python extract_dicom_headers.py --dicom test --output out_test.tsv --read_all --dummy_table T1 FLAIR""",
+        python extract_dicom_headers.py --dicom test --output out_test.tsv --read_all""",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
@@ -140,11 +103,8 @@ if __name__ == "__main__":
     parser.add_argument("--dicom", required=True, help="Path to the directory containing DICOM files.")
     parser.add_argument("--output", required=True, help="Path to save the output CSV file.")
     parser.add_argument("--read_all", action='store_true', help="Read all DICOM files in the directory, not just the first 5.")
-    parser.add_argument("--dummy_table", nargs='+', help="Create a dummy table with specified series descriptions, separated by spaces.")
 
     # Parse the arguments
     args = parser.parse_args()
 
-
-
-    main(args.dicom, args.output, args.read_all, args.dummy_table)
+    main(args.dicom, args.output, args.read_all)
