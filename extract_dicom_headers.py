@@ -57,7 +57,9 @@ def main(dicom_dir, output_path, read_all=False):
         "00180091": "Echo Train Length",
         "00180082": "Inversion Time",
         "00181314": "Flip Angle",
-        "00080008": "Image Type",  # Added Image Type field
+        "00080008": "Image Type",
+        "00189073": "Acquisition Duration",  # Added Acquisition Duration
+        "2001101B": "Prepulse Delay",  # Added Prepulse Delay
     }
 
     # The fields to extract, in order
