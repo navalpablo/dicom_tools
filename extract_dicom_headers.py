@@ -36,10 +36,17 @@ def extract_dicom_info(file_path, fields):
 def main(dicom_dir, output_path, read_all=False):
     # Define a mapping from DICOM tags to descriptive names
     dicom_field_mapping = {
+        "00100010": "Patient Name",
+        "00100030": "Patient Birth Date",
+        "00100040": "Patient Sex",
+        "00101010": "Patient Age",
         "00100020": "Patient ID",
+        "00080070": "Manufacturer",
+        "00081090": "Manufacturer's Model Name",
+        "00181030": "Protocol Name",
+        "00189423": "Acquisition Protocol Name",
         "00080020": "Study Date",
         "00180087": "Magnetic Field Strength",
-        "00081090": "Manufacturer's Model Name",
         "00080080": "Institution Name",
         "00080050": "Accession Number",
         "0020000D": "Study Instance UID",
@@ -58,8 +65,8 @@ def main(dicom_dir, output_path, read_all=False):
         "00180082": "Inversion Time",
         "00181314": "Flip Angle",
         "00080008": "Image Type",
-        "00189073": "Acquisition Duration",  # Added Acquisition Duration
-        "2001101B": "Prepulse Delay",  # Added Prepulse Delay
+        "00189073": "Acquisition Duration",
+        "2001101B": "Prepulse Delay",
     }
 
     # The fields to extract, in order
