@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 def find_dicom_files(directory, read_all):
     for root, dirs, files in os.walk(directory):
-        dicom_files = [os.path.join(root, f) for f in files if f.endswith('.dcm') or '.' not in f]
+        dicom_files = [os.path.join(root, f) for f in files]
         if not read_all:
             dicom_files = dicom_files[:5]  # Limit to first 5 files if not reading all
         for file_path in dicom_files:
