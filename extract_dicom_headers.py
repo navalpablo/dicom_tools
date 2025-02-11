@@ -67,6 +67,7 @@ def main(dicom_dir, output_path, read_all=False):
         "00080008": "Image Type",
         "00189073": "Acquisition Duration",
         "2001101B": "Prepulse Delay",
+	"00201209": "Number Series Related Instances",
     }
 
     # The fields to extract, in order
@@ -81,8 +82,8 @@ def main(dicom_dir, output_path, read_all=False):
     for file_path in tqdm(all_files, desc="Processing DICOM files"):
         info = extract_dicom_info(file_path, fields)
         if info:
-            # Combine Study Instance UID and Series Number to create a unique ID
-            unique_id = (info.get("0020000D", ""), info.get("0008103E", ""))
+            # Combine Study Instance UID and Series Instance UID to create a unique ID
+            unique_id = (info.get("0020000D", ""), info.get("0020000E", ""))
             if unique_id not in unique_sequences and all(unique_id):
                 unique_sequences[unique_id] = info
 
