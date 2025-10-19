@@ -17,17 +17,90 @@ def hex_string_to_tag(hex_str):
     group, element = hex_str[:4], hex_str[4:]
     return (int(group, 16), int(element, 16))
 
+def get_value_from_sequence(dicom, tag):
+    """
+    Search for a tag value in common DICOM sequences where acquisition parameters are stored.
+    This handles enhanced DICOM files where parameters are in functional group sequences.
+    """
+    # Try SharedFunctionalGroupsSequence (common in enhanced MR)
+    if (0x5200, 0x9229) in dicom:  # SharedFunctionalGroupsSequence
+        shared_groups = dicom[0x5200, 0x9229][0]
+        
+        # Check MR Echo Sequence
+        if (0x0018, 0x9114) in shared_groups:  # MREchoSequence
+            echo_seq = shared_groups[0x0018, 0x9114][0]
+            if tag in echo_seq:
+                return str(echo_seq[tag].value)
+        
+        # Check MR Timing and Related Parameters Sequence
+        if (0x0018, 0x9112) in shared_groups:  # MRTimingAndRelatedParametersSequence
+            timing_seq = shared_groups[0x0018, 0x9112][0]
+            if tag in timing_seq:
+                return str(timing_seq[tag].value)
+        
+        # Check MR Image Frame Type Sequence
+        if (0x0018, 0x9226) in shared_groups:  # MRImageFrameTypeSequence
+            frame_type_seq = shared_groups[0x0018, 0x9226][0]
+            if tag in frame_type_seq:
+                return str(frame_type_seq[tag].value)
+        
+        # Check other sequences in shared functional groups
+        for key in shared_groups.keys():
+            if shared_groups[key].VR == 'SQ':  # It's a sequence
+                try:
+                    seq_item = shared_groups[key][0]
+                    if tag in seq_item:
+                        return str(seq_item[tag].value)
+                except (IndexError, AttributeError):
+                    continue
+    
+    # Try PerFrameFunctionalGroupsSequence (first frame)
+    if (0x5200, 0x9230) in dicom:  # PerFrameFunctionalGroupsSequence
+        try:
+            per_frame_groups = dicom[0x5200, 0x9230][0]
+            
+            # Check MR Echo Sequence
+            if (0x0018, 0x9114) in per_frame_groups:
+                echo_seq = per_frame_groups[0x0018, 0x9114][0]
+                if tag in echo_seq:
+                    return str(echo_seq[tag].value)
+            
+            # Check MR Timing and Related Parameters Sequence
+            if (0x0018, 0x9112) in per_frame_groups:
+                timing_seq = per_frame_groups[0x0018, 0x9112][0]
+                if tag in timing_seq:
+                    return str(timing_seq[tag].value)
+            
+            # Check other sequences in per-frame functional groups
+            for key in per_frame_groups.keys():
+                if per_frame_groups[key].VR == 'SQ':
+                    try:
+                        seq_item = per_frame_groups[key][0]
+                        if tag in seq_item:
+                            return str(seq_item[tag].value)
+                    except (IndexError, AttributeError):
+                        continue
+        except (IndexError, AttributeError):
+            pass
+    
+    return None
+
 def extract_dicom_info(file_path, fields):
     try:
         dicom = pydicom.dcmread(file_path, stop_before_pixels=True)
         info = OrderedDict()
         for field in fields:
             tag = hex_string_to_tag(field)
+            value = None
+            
+            # First, try to get the value directly from the main dataset
             if tag in dicom:
                 value = str(dicom[tag].value)
-                info[field] = value
             else:
-                info[field] = ''
+                # If not found, search in sequences (for enhanced DICOM)
+                value = get_value_from_sequence(dicom, tag)
+            
+            info[field] = value if value is not None else ''
         return info
     except Exception as e:
         print(f"Error reading DICOM file {file_path}: {e}")
@@ -67,7 +140,7 @@ def main(dicom_dir, output_path, read_all=False):
         "00080008": "Image Type",
         "00189073": "Acquisition Duration",
         "2001101B": "Prepulse Delay",
-	"00201209": "Number Series Related Instances",
+        "00201209": "Number Series Related Instances",
     }
 
     # The fields to extract, in order
